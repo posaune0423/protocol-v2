@@ -21,6 +21,7 @@ import {
 	BaseTxParams,
 	DriftClientMetricsEvents,
 	IWallet,
+	IVersionedWallet,
 	MappedRecord,
 	SignedTxData,
 	TxParams,
@@ -295,8 +296,20 @@ export class TxHandler {
 
 		this.preSignedCb?.();
 
-		//@ts-ignore
-		const signedTx = (await wallet.signTransaction(tx)) as VersionedTransaction;
+		let signedTx: VersionedTransaction;
+		if ((wallet as unknown as IVersionedWallet)?.signVersionedTransaction) {
+			// Use versioned signing when supported
+			signedTx = await (wallet as unknown as IVersionedWallet).signVersionedTransaction(
+				tx
+			);
+		} else if (wallet.payer) {
+			// Fallback: directly sign with payer if available
+			tx.sign([wallet.payer]);
+			signedTx = tx;
+		} else {
+			// Last resort: return as-is (additional signers already applied above)
+			signedTx = tx;
+		}
 
 		// Turn txSig Buffer into base58 string
 		const txSig = this.getTxSigFromSignedTx(signedTx);
@@ -697,9 +710,48 @@ export class TxHandler {
 
 		this.preSignedCb?.();
 
-		const signedFilteredTxs = await wallet.signAllTransactions(
-			filteredTxEntries.map(([_, tx]) => tx as Transaction)
+		// Split legacy vs versioned for correct signing
+		const legacyEntries = filteredTxEntries.filter(([, tx]) =>
+			this.isLegacyTransaction(tx)
 		);
+		const versionedEntries = filteredTxEntries.filter(([, tx]) =>
+			this.isVersionedTransaction(tx)
+		);
+
+		const signedLegacyTxs = legacyEntries.length
+			? await wallet.signAllTransactions(
+					legacyEntries.map(([, tx]) => tx as Transaction)
+				)
+			: ([] as Transaction[]);
+
+		let signedVersionedTxs: VersionedTransaction[] = [];
+		if (versionedEntries.length) {
+			if ((wallet as unknown as IVersionedWallet)?.signAllVersionedTransactions) {
+				signedVersionedTxs = await (wallet as unknown as IVersionedWallet).signAllVersionedTransactions(
+					versionedEntries.map(([, tx]) => tx as VersionedTransaction)
+				);
+			} else {
+				// Fallback: sign with payer if available; else pass through
+				signedVersionedTxs = versionedEntries.map(([, tx]) => {
+					const vtx = tx as VersionedTransaction;
+					if (wallet.payer) {
+						vtx.sign([wallet.payer]);
+					}
+					return vtx;
+				});
+			}
+		}
+
+		// Reassemble in original order
+		const signedFilteredTxs = filteredTxEntries.map(([key, tx]) => {
+			if (this.isLegacyTransaction(tx)) {
+				const idx = legacyEntries.findIndex(([k]) => k === key);
+				return signedLegacyTxs[idx];
+			} else {
+				const idx = versionedEntries.findIndex(([k]) => k === key);
+				return signedVersionedTxs[idx];
+			}
+		});
 
 		signedFilteredTxs.forEach((signedTx, index) => {
 			// @ts-ignore
