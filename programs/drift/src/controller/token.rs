@@ -199,3 +199,34 @@ pub fn transfer_checked_with_transfer_hook<'info>(
 
     solana_program::program::invoke_signed(&ix, &account_infos, signer_seeds).map_err(Into::into)
 }
+
+pub fn initialize_token_account<'info>(
+    token_program: &Interface<'info, TokenInterface>,
+    account: &AccountInfo<'info>,
+    owner: &AccountInfo<'info>,
+    mint: &InterfaceAccount<'info, Mint>,
+) -> Result<()> {
+    let cpi_program = token_program.to_account_info();
+    let accounts = ::anchor_spl::token_interface::InitializeAccount3 {
+        account: account.to_account_info(),
+        mint: mint.to_account_info(),
+        authority: owner.to_account_info(),
+    };
+    let cpi_ctx = anchor_lang::context::CpiContext::new(cpi_program, accounts);
+    ::anchor_spl::token_interface::initialize_account3(cpi_ctx)?;
+
+    Ok(())
+}
+
+pub fn initialize_immutable_owner<'info>(
+    token_program: &Interface<'info, TokenInterface>,
+    account: &AccountInfo<'info>,
+) -> Result<()> {
+    let accounts = ::anchor_spl::token_interface::InitializeImmutableOwner {
+        account: account.to_account_info(),
+    };
+    let cpi_ctx = anchor_lang::context::CpiContext::new(token_program.to_account_info(), accounts);
+    ::anchor_spl::token_interface::initialize_immutable_owner(cpi_ctx)?;
+
+    Ok(())
+}

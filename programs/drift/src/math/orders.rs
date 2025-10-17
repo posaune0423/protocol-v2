@@ -1,8 +1,6 @@
 use std::cmp::min;
 use std::ops::Sub;
 
-use crate::math::constants::PERCENTAGE_PRECISION;
-use crate::math::constants::PERCENTAGE_PRECISION_I128;
 use crate::msg;
 
 use crate::controller::position::PositionDelta;
@@ -12,6 +10,7 @@ use crate::math::amm::calculate_amm_available_liquidity;
 use crate::math::casting::Cast;
 use crate::state::protected_maker_mode_config::ProtectedMakerParams;
 use crate::state::user::OrderBitFlag;
+use crate::PERCENTAGE_PRECISION_I128;
 use crate::{
     load, math, FeeTier, BASE_PRECISION_I128, FEE_ADJUSTMENT_MAX, MARGIN_PRECISION_I128,
     MAX_PREDICTION_MARKET_PRICE, MAX_PREDICTION_MARKET_PRICE_I64, OPEN_ORDER_MARGIN_REQUIREMENT,
@@ -353,7 +352,6 @@ pub fn get_position_delta_for_fill(
             PositionDirection::Long => base_asset_amount.cast()?,
             PositionDirection::Short => -base_asset_amount.cast()?,
         },
-        remainder_base_asset_amount: None,
     })
 }
 
@@ -811,6 +809,7 @@ pub fn calculate_max_perp_order_size(
     )?;
 
     let user_custom_margin_ratio = user.max_margin_ratio;
+    let perp_position_margin_ratio = user.perp_positions[position_index].max_margin_ratio as u32;
     let user_high_leverage_mode = user.is_high_leverage_mode(MarginRequirementType::Initial);
 
     let free_collateral_before = total_collateral.safe_sub(margin_requirement.cast()?)?;
@@ -840,7 +839,8 @@ pub fn calculate_max_perp_order_size(
             MarginRequirementType::Initial,
             user_high_leverage_mode,
         )?
-        .max(user_custom_margin_ratio);
+        .max(user_custom_margin_ratio)
+        .max(perp_position_margin_ratio);
 
     let mut order_size_to_reduce_position = 0_u64;
     let mut free_collateral_released = 0_i128;
@@ -917,7 +917,8 @@ pub fn calculate_max_perp_order_size(
                 MarginRequirementType::Initial,
                 user_high_leverage_mode,
             )?
-            .max(user_custom_margin_ratio);
+            .max(user_custom_margin_ratio)
+            .max(perp_position_margin_ratio);
 
         Ok((new_order_size, new_margin_ratio))
     };

@@ -5,7 +5,6 @@ use anchor_lang::prelude::*;
 
 use crate::controller::amm::get_fee_pool_tokens;
 use crate::controller::funding::settle_funding_payment;
-use crate::controller::lp::burn_lp_shares;
 use crate::controller::orders;
 use crate::controller::orders::{cancel_order, fill_perp_order, place_perp_order};
 use crate::controller::position::{
@@ -51,10 +50,9 @@ use crate::math::safe_math::SafeMath;
 
 use crate::math::spot_balance::get_token_value;
 use crate::state::events::{
-    emit_stack, LPAction, LPRecord, LiquidateBorrowForPerpPnlRecord,
-    LiquidatePerpPnlForDepositRecord, LiquidatePerpRecord, LiquidateSpotRecord, LiquidationRecord,
-    LiquidationType, OrderAction, OrderActionExplanation, OrderActionRecord, OrderRecord,
-    PerpBankruptcyRecord, SpotBankruptcyRecord,
+    LiquidateBorrowForPerpPnlRecord, LiquidatePerpPnlForDepositRecord, LiquidatePerpRecord,
+    LiquidateSpotRecord, LiquidationRecord, LiquidationType, OrderAction, OrderActionExplanation,
+    OrderActionRecord, OrderRecord, PerpBankruptcyRecord, SpotBankruptcyRecord,
 };
 use crate::state::fill_mode::FillMode;
 use crate::state::margin_calculation::{MarginCalculation, MarginContext, MarketIdentifier};
@@ -66,7 +64,6 @@ use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::SpotBalanceType;
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::state::State;
-use crate::state::traits::Size;
 use crate::state::user::{MarketType, Order, OrderStatus, OrderType, User, UserStats};
 use crate::state::user_map::{UserMap, UserStatsMap};
 use crate::{get_then_update_id, load_mut, LST_POOL_ID};
@@ -181,8 +178,7 @@ pub fn liquidate_perp(
     let position_index = get_position_index(&user.perp_positions, market_index)?;
     validate!(
         user.perp_positions[position_index].is_open_position()
-            || user.perp_positions[position_index].has_open_order()
-            || user.perp_positions[position_index].is_lp(),
+            || user.perp_positions[position_index].has_open_order(),
         ErrorCode::PositionDoesntHaveOpenPositionOrOrders
     )?;
 
@@ -227,27 +223,7 @@ pub fn liquidate_perp(
     drop(market);
 
     // burning lp shares = removing open bids/asks
-    let lp_shares = user.perp_positions[position_index].lp_shares;
-    if lp_shares > 0 {
-        let (position_delta, pnl) = burn_lp_shares(
-            &mut user.perp_positions[position_index],
-            perp_market_map.get_ref_mut(&market_index)?.deref_mut(),
-            lp_shares,
-            oracle_price,
-        )?;
-
-        // emit LP record for shares removed
-        emit_stack::<_, { LPRecord::SIZE }>(LPRecord {
-            ts: now,
-            action: LPAction::RemoveLiquidity,
-            user: *user_key,
-            n_shares: lp_shares,
-            market_index,
-            delta_base_asset_amount: position_delta.base_asset_amount,
-            delta_quote_asset_amount: position_delta.quote_asset_amount,
-            pnl,
-        })?;
-    }
+    let lp_shares = 0;
 
     // check if user exited liquidation territory
     let intermediate_margin_calculation = if !canceled_order_ids.is_empty() || lp_shares > 0 {
@@ -699,6 +675,8 @@ pub fn liquidate_perp(
         maker_existing_quote_entry_amount: maker_existing_quote_entry_amount,
         maker_existing_base_asset_amount: maker_existing_base_asset_amount,
         trigger_price: None,
+        builder_idx: None,
+        builder_fee: None,
     };
     emit!(fill_record);
 
@@ -832,8 +810,7 @@ pub fn liquidate_perp_with_fill(
     let position_index = get_position_index(&user.perp_positions, market_index)?;
     validate!(
         user.perp_positions[position_index].is_open_position()
-            || user.perp_positions[position_index].has_open_order()
-            || user.perp_positions[position_index].is_lp(),
+            || user.perp_positions[position_index].has_open_order(),
         ErrorCode::PositionDoesntHaveOpenPositionOrOrders
     )?;
 
@@ -878,27 +855,7 @@ pub fn liquidate_perp_with_fill(
     drop(market);
 
     // burning lp shares = removing open bids/asks
-    let lp_shares = user.perp_positions[position_index].lp_shares;
-    if lp_shares > 0 {
-        let (position_delta, pnl) = burn_lp_shares(
-            &mut user.perp_positions[position_index],
-            perp_market_map.get_ref_mut(&market_index)?.deref_mut(),
-            lp_shares,
-            oracle_price,
-        )?;
-
-        // emit LP record for shares removed
-        emit_stack::<_, { LPRecord::SIZE }>(LPRecord {
-            ts: now,
-            action: LPAction::RemoveLiquidity,
-            user: *user_key,
-            n_shares: lp_shares,
-            market_index,
-            delta_base_asset_amount: position_delta.base_asset_amount,
-            delta_quote_asset_amount: position_delta.quote_asset_amount,
-            pnl,
-        })?;
-    }
+    let lp_shares = 0;
 
     // check if user exited liquidation territory
     let intermediate_margin_calculation = if !canceled_order_ids.is_empty() || lp_shares > 0 {
@@ -1083,6 +1040,7 @@ pub fn liquidate_perp_with_fill(
         clock,
         order_params,
         PlaceOrderOptions::default().explanation(OrderActionExplanation::Liquidation),
+        &mut None,
     )?;
 
     drop(user);
@@ -1103,6 +1061,8 @@ pub fn liquidate_perp_with_fill(
         None,
         clock,
         FillMode::Liquidation,
+        &mut None,
+        false,
     )?;
 
     let mut user = load_mut!(user_loader)?;
@@ -2448,12 +2408,6 @@ pub fn liquidate_borrow_for_perp_pnl(
             base_asset_amount
         )?;
 
-        validate!(
-            !user_position.is_lp(),
-            ErrorCode::InvalidPerpPositionToLiquidate,
-            "user is an lp. must call liquidate_perp first"
-        )?;
-
         let pnl = user_position.quote_asset_amount.cast::<i128>()?;
 
         validate!(
@@ -2981,12 +2935,6 @@ pub fn liquidate_perp_pnl_for_deposit(
             ErrorCode::InvalidPerpPositionToLiquidate,
             "Cant have open perp position (base_asset_amount: {})",
             base_asset_amount
-        )?;
-
-        validate!(
-            !user_position.is_lp(),
-            ErrorCode::InvalidPerpPositionToLiquidate,
-            "user is an lp. must call liquidate_perp first"
         )?;
 
         let unsettled_pnl = user_position.quote_asset_amount.cast::<i128>()?;

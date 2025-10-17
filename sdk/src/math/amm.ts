@@ -197,14 +197,16 @@ export function calculateUpdatedAMMSpreadReserves(
 	amm: AMM,
 	direction: PositionDirection,
 	mmOraclePriceData: MMOraclePriceData,
-	isPrediction = false
+	isPrediction = false,
+	latestSlot?: BN
 ): { baseAssetReserve: BN; quoteAssetReserve: BN; sqrtK: BN; newPeg: BN } {
 	const newAmm = calculateUpdatedAMM(amm, mmOraclePriceData);
 	const [shortReserves, longReserves] = calculateSpreadReserves(
 		newAmm,
 		mmOraclePriceData,
 		undefined,
-		isPrediction
+		isPrediction,
+		latestSlot
 	);
 
 	const dirReserves = isVariant(direction, 'long')
@@ -225,7 +227,8 @@ export function calculateBidAskPrice(
 	amm: AMM,
 	mmOraclePriceData: MMOraclePriceData,
 	withUpdate = true,
-	isPrediction = false
+	isPrediction = false,
+	latestSlot?: BN
 ): [BN, BN] {
 	let newAmm: AMM;
 	if (withUpdate) {
@@ -238,7 +241,8 @@ export function calculateBidAskPrice(
 		newAmm,
 		mmOraclePriceData,
 		undefined,
-		isPrediction
+		isPrediction,
+		latestSlot
 	);
 
 	const askPrice = calculatePrice(
@@ -385,6 +389,31 @@ export function calculateInventoryLiquidityRatio(
 	return inventoryScaleBN;
 }
 
+export function calculateInventoryLiquidityRatioForReferencePriceOffset(
+	baseAssetAmountWithAmm: BN,
+	baseAssetReserve: BN,
+	minBaseAssetReserve: BN,
+	maxBaseAssetReserve: BN
+): BN {
+	// inventory skew
+	const [openBids, openAsks] = calculateMarketOpenBidAsk(
+		baseAssetReserve,
+		minBaseAssetReserve,
+		maxBaseAssetReserve
+	);
+
+	const avgSideLiquidity = openBids.abs().add(openAsks.abs()).div(TWO);
+
+	const inventoryScaleBN = BN.min(
+		baseAssetAmountWithAmm
+			.mul(PERCENTAGE_PRECISION)
+			.div(BN.max(avgSideLiquidity, ONE))
+			.abs(),
+		PERCENTAGE_PRECISION
+	);
+	return inventoryScaleBN;
+}
+
 export function calculateInventoryScale(
 	baseAssetAmountWithAmm: BN,
 	baseAssetReserve: BN,
@@ -436,7 +465,7 @@ export function calculateReferencePriceOffset(
 	markTwapSlow: BN,
 	maxOffsetPct: number
 ): BN {
-	if (last24hAvgFundingRate.eq(ZERO)) {
+	if (last24hAvgFundingRate.eq(ZERO) || liquidityFraction.eq(ZERO)) {
 		return ZERO;
 	}
 
@@ -939,7 +968,8 @@ export function calculateSpreadReserves(
 	amm: AMM,
 	mmOraclePriceData: MMOraclePriceData,
 	now?: BN,
-	isPrediction = false
+	isPrediction = false,
+	latestSlot?: BN
 ) {
 	function calculateSpreadReserve(
 		spread: number,
@@ -1008,19 +1038,38 @@ export function calculateSpreadReserves(
 				(amm.curveUpdateIntensity - 100)
 		);
 
-		const liquidityFraction = calculateInventoryLiquidityRatio(
-			amm.baseAssetAmountWithAmm,
-			amm.baseAssetReserve,
-			amm.minBaseAssetReserve,
-			amm.maxBaseAssetReserve
-		);
+		const liquidityFraction =
+			calculateInventoryLiquidityRatioForReferencePriceOffset(
+				amm.baseAssetAmountWithAmm,
+				amm.baseAssetReserve,
+				amm.minBaseAssetReserve,
+				amm.maxBaseAssetReserve
+			);
 		const liquidityFractionSigned = liquidityFraction.mul(
 			sigNum(amm.baseAssetAmountWithAmm.add(amm.baseAssetAmountWithUnsettledLp))
 		);
+
+		let liquidityFractionAfterDeadband = liquidityFractionSigned;
+		const deadbandPct = amm.referencePriceOffsetDeadbandPct
+			? PERCENTAGE_PRECISION.mul(
+					new BN(amm.referencePriceOffsetDeadbandPct as number)
+			  ).divn(100)
+			: ZERO;
+		if (!liquidityFractionAfterDeadband.eq(ZERO) && deadbandPct.gt(ZERO)) {
+			const abs = liquidityFractionAfterDeadband.abs();
+			if (abs.lte(deadbandPct)) {
+				liquidityFractionAfterDeadband = ZERO;
+			} else {
+				liquidityFractionAfterDeadband = liquidityFractionAfterDeadband.sub(
+					deadbandPct.mul(sigNum(liquidityFractionAfterDeadband))
+				);
+			}
+		}
+
 		referencePriceOffset = calculateReferencePriceOffset(
 			reservePrice,
 			amm.last24HAvgFundingRate,
-			liquidityFractionSigned,
+			liquidityFractionAfterDeadband,
 			amm.historicalOracleData.lastOraclePriceTwap5Min,
 			amm.lastMarkPriceTwap5Min,
 			amm.historicalOracleData.lastOraclePriceTwap,
@@ -1041,28 +1090,28 @@ export function calculateSpreadReserves(
 		amm.curveUpdateIntensity > 100;
 
 	if (doReferencePricOffsetSmooth) {
-		if (mmOraclePriceData.slot !== amm.lastUpdateSlot) {
-			const slotsPassed =
-				mmOraclePriceData.slot.toNumber() - amm.lastUpdateSlot.toNumber();
-			const fullOffsetDelta = referencePriceOffset - amm.referencePriceOffset;
-			const raw = Math.trunc(
-				Math.min(Math.abs(fullOffsetDelta), slotsPassed * 1000) / 10
-			);
-			const maxAllowed =
-				Math.abs(amm.referencePriceOffset) || Math.abs(referencePriceOffset);
+		const slotsPassed =
+			latestSlot != null
+				? BN.max(latestSlot.sub(amm.lastUpdateSlot), ZERO).toNumber()
+				: 0;
+		const fullOffsetDelta = referencePriceOffset - amm.referencePriceOffset;
+		const raw = Math.trunc(
+			Math.min(Math.abs(fullOffsetDelta), slotsPassed * 1000) / 10
+		);
+		const maxAllowed =
+			Math.abs(amm.referencePriceOffset) || Math.abs(referencePriceOffset);
 
-			const magnitude = Math.min(Math.max(raw, 10), maxAllowed);
-			const referencePriceDelta = Math.sign(fullOffsetDelta) * magnitude;
+		const magnitude = Math.min(Math.max(raw, 10), maxAllowed);
+		const referencePriceDelta = Math.sign(fullOffsetDelta) * magnitude;
 
-			referencePriceOffset = amm.referencePriceOffset + referencePriceDelta;
+		referencePriceOffset = amm.referencePriceOffset + referencePriceDelta;
 
-			if (referencePriceDelta < 0) {
-				longSpread += Math.abs(referencePriceDelta);
-				shortSpread += Math.abs(referencePriceOffset);
-			} else {
-				shortSpread += Math.abs(referencePriceDelta);
-				longSpread += Math.abs(referencePriceOffset);
-			}
+		if (referencePriceDelta < 0) {
+			longSpread += Math.abs(referencePriceDelta);
+			shortSpread += Math.abs(referencePriceOffset);
+		} else {
+			shortSpread += Math.abs(referencePriceDelta);
+			longSpread += Math.abs(referencePriceOffset);
 		}
 	}
 

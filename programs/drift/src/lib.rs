@@ -351,30 +351,6 @@ pub mod drift {
         )
     }
 
-    pub fn add_perp_lp_shares<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, AddRemoveLiquidity<'info>>,
-        n_shares: u64,
-        market_index: u16,
-    ) -> Result<()> {
-        handle_add_perp_lp_shares(ctx, n_shares, market_index)
-    }
-
-    pub fn remove_perp_lp_shares<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, AddRemoveLiquidity<'info>>,
-        shares_to_burn: u64,
-        market_index: u16,
-    ) -> Result<()> {
-        handle_remove_perp_lp_shares(ctx, shares_to_burn, market_index)
-    }
-
-    pub fn remove_perp_lp_shares_in_expiring_market<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, RemoveLiquidityInExpiredMarket<'info>>,
-        shares_to_burn: u64,
-        market_index: u16,
-    ) -> Result<()> {
-        handle_remove_perp_lp_shares_in_expiring_market(ctx, shares_to_burn, market_index)
-    }
-
     pub fn update_user_name(
         ctx: Context<UpdateUser>,
         _sub_account_id: u16,
@@ -389,6 +365,20 @@ pub mod drift {
         margin_ratio: u32,
     ) -> Result<()> {
         handle_update_user_custom_margin_ratio(ctx, _sub_account_id, margin_ratio)
+    }
+
+    pub fn update_user_perp_position_custom_margin_ratio(
+        ctx: Context<UpdateUserPerpPositionCustomMarginRatio>,
+        _sub_account_id: u16,
+        perp_market_index: u16,
+        margin_ratio: u16,
+    ) -> Result<()> {
+        handle_update_user_perp_position_custom_margin_ratio(
+            ctx,
+            _sub_account_id,
+            perp_market_index,
+            margin_ratio,
+        )
     }
 
     pub fn update_user_margin_trading_enabled<'c: 'info, 'info>(
@@ -423,13 +413,13 @@ pub mod drift {
         handle_update_user_reduce_only(ctx, _sub_account_id, reduce_only)
     }
 
-    pub fn update_user_advanced_lp(
-        ctx: Context<UpdateUser>,
-        _sub_account_id: u16,
-        advanced_lp: bool,
-    ) -> Result<()> {
-        handle_update_user_advanced_lp(ctx, _sub_account_id, advanced_lp)
-    }
+    // pub fn update_user_advanced_lp(
+    //     ctx: Context<UpdateUser>,
+    //     _sub_account_id: u16,
+    //     advanced_lp: bool,
+    // ) -> Result<()> {
+    //     handle_update_user_advanced_lp(ctx, _sub_account_id, advanced_lp)
+    // }
 
     pub fn update_user_protected_maker_orders(
         ctx: Context<UpdateUserProtectedMakerMode>,
@@ -535,9 +525,9 @@ pub mod drift {
         handle_update_user_stats_referrer_info(ctx)
     }
 
-    pub fn update_user_open_orders_count(ctx: Context<UpdateUserIdle>) -> Result<()> {
-        handle_update_user_open_orders_count(ctx)
-    }
+    // pub fn update_user_open_orders_count(ctx: Context<UpdateUserIdle>) -> Result<()> {
+    //     handle_update_user_open_orders_count(ctx)
+    // }
 
     pub fn admin_disable_update_perp_bid_ask_twap(
         ctx: Context<AdminDisableBidAskTwapUpdate>,
@@ -565,13 +555,6 @@ pub mod drift {
         ctx: Context<'_, '_, 'c, 'info, SettleFunding>,
     ) -> Result<()> {
         handle_settle_funding_payment(ctx)
-    }
-
-    pub fn settle_lp<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, SettleLP>,
-        market_index: u16,
-    ) -> Result<()> {
-        handle_settle_lp(ctx, market_index)
     }
 
     pub fn settle_expired_market<'c: 'info, 'info>(
@@ -742,6 +725,7 @@ pub mod drift {
         handle_update_spot_market_expiry(ctx, expiry_ts)
     }
 
+    // IF stakers
     pub fn update_user_quote_asset_insurance_stake(
         ctx: Context<UpdateUserQuoteAssetInsuranceStake>,
     ) -> Result<()> {
@@ -754,14 +738,11 @@ pub mod drift {
         handle_update_user_gov_token_insurance_stake(ctx)
     }
 
-    pub fn update_user_gov_token_insurance_stake_devnet(
-        ctx: Context<UpdateUserGovTokenInsuranceStakeDevnet>,
-        gov_stake_amount: u64,
+    pub fn update_delegate_user_gov_token_insurance_stake(
+        ctx: Context<UpdateDelegateUserGovTokenInsuranceStake>,
     ) -> Result<()> {
-        handle_update_user_gov_token_insurance_stake_devnet(ctx, gov_stake_amount)
+        handle_update_delegate_user_gov_token_insurance_stake(ctx)
     }
-
-    // IF stakers
 
     pub fn initialize_insurance_fund_stake(
         ctx: Context<InitializeInsuranceFundStake>,
@@ -800,13 +781,14 @@ pub mod drift {
         handle_remove_insurance_fund_stake(ctx, market_index)
     }
 
-    pub fn transfer_protocol_if_shares(
-        ctx: Context<TransferProtocolIfShares>,
-        market_index: u16,
-        shares: u128,
-    ) -> Result<()> {
-        handle_transfer_protocol_if_shares(ctx, market_index, shares)
-    }
+    // pub fn transfer_protocol_if_shares(
+    //     ctx: Context<TransferProtocolIfShares>,
+    //     market_index: u16,
+    //     shares: u128,
+    // ) -> Result<()> {
+    //     handle_transfer_protocol_if_shares(ctx, market_index, shares)
+    // }
+
     pub fn begin_insurance_fund_swap<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, InsuranceFundSwap<'info>>,
         in_market_index: u16,
@@ -830,6 +812,14 @@ pub mod drift {
         amount: u64,
     ) -> Result<()> {
         handle_transfer_protocol_if_shares_to_revenue_pool(ctx, market_index, amount)
+    }
+
+    pub fn deposit_into_insurance_fund_stake<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, DepositIntoInsuranceFundStake<'info>>,
+        market_index: u16,
+        amount: u64,
+    ) -> Result<()> {
+        handle_deposit_into_insurance_fund_stake(ctx, market_index, amount)
     }
 
     pub fn update_pyth_pull_oracle(
@@ -961,9 +951,9 @@ pub mod drift {
         handle_update_phoenix_fulfillment_config_status(ctx, status)
     }
 
-    pub fn update_serum_vault(ctx: Context<UpdateSerumVault>) -> Result<()> {
-        handle_update_serum_vault(ctx)
-    }
+    // pub fn update_serum_vault(ctx: Context<UpdateSerumVault>) -> Result<()> {
+    //     handle_update_serum_vault(ctx)
+    // }
 
     pub fn initialize_perp_market<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, InitializePerpMarket<'info>>,
@@ -1350,7 +1340,7 @@ pub mod drift {
     }
 
     pub fn update_perp_market_paused_operations(
-        ctx: Context<AdminUpdatePerpMarket>,
+        ctx: Context<HotAdminUpdatePerpMarket>,
         paused_operations: u8,
     ) -> Result<()> {
         handle_update_perp_market_paused_operations(ctx, paused_operations)
@@ -1397,21 +1387,14 @@ pub mod drift {
         handle_update_perp_market_curve_update_intensity(ctx, curve_update_intensity)
     }
 
-    pub fn update_perp_market_target_base_asset_amount_per_lp(
-        ctx: Context<AdminUpdatePerpMarket>,
-        target_base_asset_amount_per_lp: i32,
+    pub fn update_perp_market_reference_price_offset_deadband_pct(
+        ctx: Context<HotAdminUpdatePerpMarket>,
+        reference_price_offset_deadband_pct: u8,
     ) -> Result<()> {
-        handle_update_perp_market_target_base_asset_amount_per_lp(
+        handle_update_perp_market_reference_price_offset_deadband_pct(
             ctx,
-            target_base_asset_amount_per_lp,
+            reference_price_offset_deadband_pct,
         )
-    }
-
-    pub fn update_perp_market_per_lp_base(
-        ctx: Context<AdminUpdatePerpMarket>,
-        per_lp_base: i8,
-    ) -> Result<()> {
-        handle_update_perp_market_per_lp_base(ctx, per_lp_base)
     }
 
     pub fn update_lp_cooldown_time(
@@ -1508,7 +1491,7 @@ pub mod drift {
     }
 
     pub fn update_perp_market_max_spread(
-        ctx: Context<AdminUpdatePerpMarket>,
+        ctx: Context<HotAdminUpdatePerpMarket>,
         max_spread: u32,
     ) -> Result<()> {
         handle_update_perp_market_max_spread(ctx, max_spread)
@@ -1703,23 +1686,23 @@ pub mod drift {
         handle_update_spot_auction_duration(ctx, default_spot_auction_duration)
     }
 
-    pub fn initialize_protocol_if_shares_transfer_config(
-        ctx: Context<InitializeProtocolIfSharesTransferConfig>,
-    ) -> Result<()> {
-        handle_initialize_protocol_if_shares_transfer_config(ctx)
-    }
+    // pub fn initialize_protocol_if_shares_transfer_config(
+    //     ctx: Context<InitializeProtocolIfSharesTransferConfig>,
+    // ) -> Result<()> {
+    //     handle_initialize_protocol_if_shares_transfer_config(ctx)
+    // }
 
-    pub fn update_protocol_if_shares_transfer_config(
-        ctx: Context<UpdateProtocolIfSharesTransferConfig>,
-        whitelisted_signers: Option<[Pubkey; 4]>,
-        max_transfer_per_epoch: Option<u128>,
-    ) -> Result<()> {
-        handle_update_protocol_if_shares_transfer_config(
-            ctx,
-            whitelisted_signers,
-            max_transfer_per_epoch,
-        )
-    }
+    // pub fn update_protocol_if_shares_transfer_config(
+    //     ctx: Context<UpdateProtocolIfSharesTransferConfig>,
+    //     whitelisted_signers: Option<[Pubkey; 4]>,
+    //     max_transfer_per_epoch: Option<u128>,
+    // ) -> Result<()> {
+    //     handle_update_protocol_if_shares_transfer_config(
+    //         ctx,
+    //         whitelisted_signers,
+    //         max_transfer_per_epoch,
+    //     )
+    // }
 
     pub fn initialize_prelaunch_oracle(
         ctx: Context<InitializePrelaunchOracle>,
@@ -1833,6 +1816,55 @@ pub mod drift {
         enable: bool,
     ) -> Result<()> {
         handle_update_feature_bit_flags_median_trigger_price(ctx, enable)
+    }
+
+    // pub fn update_feature_bit_flags_builder_referral(
+    //     ctx: Context<HotAdminUpdateState>,
+    //     enable: bool,
+    // ) -> Result<()> {
+    //     handle_update_feature_bit_flags_builder_referral(ctx, enable)
+    // }
+
+    pub fn update_feature_bit_flags_builder_codes(
+        ctx: Context<HotAdminUpdateState>,
+        enable: bool,
+    ) -> Result<()> {
+        handle_update_feature_bit_flags_builder_codes(ctx, enable)
+    }
+
+    pub fn initialize_revenue_share<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, InitializeRevenueShare<'info>>,
+    ) -> Result<()> {
+        handle_initialize_revenue_share(ctx)
+    }
+
+    pub fn initialize_revenue_share_escrow<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, InitializeRevenueShareEscrow<'info>>,
+        num_orders: u16,
+    ) -> Result<()> {
+        handle_initialize_revenue_share_escrow(ctx, num_orders)
+    }
+
+    // pub fn migrate_referrer<'c: 'info, 'info>(
+    //     ctx: Context<'_, '_, 'c, 'info, MigrateReferrer<'info>>,
+    // ) -> Result<()> {
+    //     handle_migrate_referrer(ctx)
+    // }
+
+    pub fn resize_revenue_share_escrow_orders<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, ResizeRevenueShareEscrowOrders<'info>>,
+        num_orders: u16,
+    ) -> Result<()> {
+        handle_resize_revenue_share_escrow_orders(ctx, num_orders)
+    }
+
+    pub fn change_approved_builder<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, ChangeApprovedBuilder<'info>>,
+        builder: Pubkey,
+        max_fee_bps: u16,
+        add: bool,
+    ) -> Result<()> {
+        handle_change_approved_builder(ctx, builder, max_fee_bps, add)
     }
 }
 

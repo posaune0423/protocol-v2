@@ -202,6 +202,9 @@ export type DataAndSlot<T> = {
 export type ResubOpts = {
 	resubTimeoutMs?: number;
 	logResubMessages?: boolean;
+	// New options for polling-based resubscription
+	usePollingInsteadOfResub?: boolean;
+	pollingIntervalMs?: number;
 };
 
 export interface UserStatsAccountEvents {
@@ -231,6 +234,7 @@ export type GrpcConfigs = {
 	 * Defaults to false, will throw on connection loss.
 	 */
 	enableReconnect?: boolean;
+	client?: 'yellowstone' | 'laser';
 };
 
 export interface HighLeverageModeConfigAccountSubscriber {
