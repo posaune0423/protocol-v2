@@ -1114,7 +1114,7 @@ export class DriftClient {
 					this.wallet.publicKey // only allow payer to initialize own user stats account
 				),
 				authority: this.wallet.publicKey,
-				payer: this.wallet.publicKey,
+				payer: this.wallet.payer?.publicKey ?? this.wallet.publicKey,
 				rent: anchor.web3.SYSVAR_RENT_PUBKEY,
 				systemProgram: anchor.web3.SystemProgram.programId,
 				state: await this.getStatePublicKey(),
@@ -1154,7 +1154,7 @@ export class DriftClient {
 				accounts: {
 					signedMsgUserOrders: signedMsgUserAccountPublicKey,
 					authority,
-					payer: this.wallet.publicKey,
+					payer: this.wallet.payer?.publicKey ?? this.wallet.publicKey,
 					rent: anchor.web3.SYSVAR_RENT_PUBKEY,
 					systemProgram: anchor.web3.SystemProgram.programId,
 				},
@@ -1195,7 +1195,7 @@ export class DriftClient {
 				accounts: {
 					signedMsgUserOrders: signedMsgUserAccountPublicKey,
 					authority,
-					payer: this.wallet.publicKey,
+					payer: this.wallet.payer?.publicKey ?? this.wallet.publicKey,
 					systemProgram: anchor.web3.SystemProgram.programId,
 					user: await getUserAccountPublicKey(
 						this.program.programId,
@@ -1533,7 +1533,7 @@ export class DriftClient {
 					authority ?? this.wallet.publicKey
 				),
 				authority: authority ?? this.wallet.publicKey,
-				payer: this.wallet.publicKey,
+				payer: this.wallet.payer?.publicKey ?? this.wallet.publicKey,
 				rent: anchor.web3.SYSVAR_RENT_PUBKEY,
 				systemProgram: anchor.web3.SystemProgram.programId,
 			},
@@ -1619,7 +1619,7 @@ export class DriftClient {
 					user: userAccountPublicKey,
 					userStats: this.getUserStatsAccountPublicKey(),
 					authority: this.wallet.publicKey,
-					payer: this.wallet.publicKey,
+					payer: this.wallet.payer?.publicKey ?? this.wallet.publicKey,
 					rent: anchor.web3.SYSVAR_RENT_PUBKEY,
 					systemProgram: anchor.web3.SystemProgram.programId,
 					state: await this.getStatePublicKey(),
@@ -1669,7 +1669,7 @@ export class DriftClient {
 					user: userAccountPublicKey,
 					authority: this.wallet.publicKey,
 					userStats: this.getUserStatsAccountPublicKey(),
-					payer: this.wallet.publicKey,
+					payer: this.wallet.payer?.publicKey ?? this.wallet.publicKey,
 					rent: anchor.web3.SYSVAR_RENT_PUBKEY,
 					systemProgram: anchor.web3.SystemProgram.programId,
 				},
@@ -9449,7 +9449,7 @@ export class DriftClient {
 				this.wallet.publicKey // only allow payer to initialize own insurance fund stake account
 			),
 			authority: this.wallet.publicKey,
-			payer: this.wallet.publicKey,
+			payer: this.wallet.payer?.publicKey ?? this.wallet.publicKey,
 			rent: anchor.web3.SYSVAR_RENT_PUBKEY,
 			systemProgram: anchor.web3.SystemProgram.programId,
 			state: await this.getStatePublicKey(),
@@ -10536,7 +10536,7 @@ export class DriftClient {
 		const tx = await asV0Tx({
 			connection: this.connection,
 			ixs: [pullIx],
-			payer: this.wallet.publicKey,
+			payer: this.wallet.payer?.publicKey ?? this.wallet.publicKey,
 			computeUnitLimitMultiple: 1.3,
 			lookupTables: await this.fetchAllLookupTableAccounts(),
 		});
