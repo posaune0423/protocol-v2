@@ -62,28 +62,33 @@ export function isOracleValid(
 
 	const amm = market.amm;
 	const isOraclePriceNonPositive = oraclePriceData.price.lte(ZERO);
-	const isOraclePriceTooVolatile =
-		oraclePriceData.price
-			.div(BN.max(ONE, amm.historicalOracleData.lastOraclePriceTwap))
-			.gt(oracleGuardRails.validity.tooVolatileRatio) ||
-		amm.historicalOracleData.lastOraclePriceTwap
-			.div(BN.max(ONE, oraclePriceData.price))
-			.gt(oracleGuardRails.validity.tooVolatileRatio);
+	// Guard against missing oracle guard rails by treating related checks as false
+	const tooVolatileRatio = oracleGuardRails?.validity?.tooVolatileRatio;
+	const isOraclePriceTooVolatile = tooVolatileRatio
+		? oraclePriceData.price
+				.div(BN.max(ONE, amm.historicalOracleData.lastOraclePriceTwap))
+				.gt(tooVolatileRatio) ||
+		  amm.historicalOracleData.lastOraclePriceTwap
+				.div(BN.max(ONE, oraclePriceData.price))
+				.gt(tooVolatileRatio)
+		: false;
 
 	const maxConfidenceIntervalMultiplier =
 		getMaxConfidenceIntervalMultiplier(market);
-	const isConfidenceTooLarge = BN.max(ONE, oraclePriceData.confidence)
-		.mul(BID_ASK_SPREAD_PRECISION)
-		.div(oraclePriceData.price)
-		.gt(
-			oracleGuardRails.validity.confidenceIntervalMaxSize.mul(
-				maxConfidenceIntervalMultiplier
-			)
-		);
+	const confidenceIntervalMaxSize =
+		oracleGuardRails?.validity?.confidenceIntervalMaxSize;
+	const isConfidenceTooLarge = confidenceIntervalMaxSize
+		? BN.max(ONE, oraclePriceData.confidence)
+				.mul(BID_ASK_SPREAD_PRECISION)
+				.div(oraclePriceData.price)
+				.gt(confidenceIntervalMaxSize.mul(maxConfidenceIntervalMultiplier))
+		: false;
 
-	const oracleIsStale = new BN(slot)
-		.sub(oraclePriceData.slot)
-		.gt(oracleGuardRails.validity.slotsBeforeStaleForAmm);
+	const slotsBeforeStaleForAmm =
+		oracleGuardRails?.validity?.slotsBeforeStaleForAmm;
+	const oracleIsStale = slotsBeforeStaleForAmm
+		? new BN(slot).sub(oraclePriceData.slot).gt(slotsBeforeStaleForAmm)
+		: false;
 
 	return !(
 		!oraclePriceData.hasSufficientNumberOfDataPoints ||
@@ -114,7 +119,7 @@ export function isOracleTooDivergent(
 	const oracleSpreadPct = oracleSpread.mul(PRICE_PRECISION).div(oracleTwap5min);
 
 	const maxDivergence = BN.max(
-		oracleGuardRails.priceDivergence.markOraclePercentDivergence,
+		oracleGuardRails?.priceDivergence?.markOraclePercentDivergence,
 		PERCENTAGE_PRECISION.div(new BN(10))
 	);
 
@@ -131,7 +136,10 @@ export function calculateLiveOracleTwap(
 ): BN {
 	let oracleTwap = undefined;
 	if (period.eq(FIVE_MINUTE)) {
-		oracleTwap = histOracleData.lastOraclePriceTwap5Min;
+		// Fallback to the slower TWAP if fast TWAP is missing/uninitialized
+		oracleTwap = histOracleData.lastOraclePriceTwap5Min.gt(ZERO)
+			? histOracleData.lastOraclePriceTwap5Min
+			: histOracleData.lastOraclePriceTwap;
 	} else {
 		//todo: assumes its fundingPeriod (1hr)
 		// period = amm.fundingPeriod;
@@ -146,9 +154,13 @@ export function calculateLiveOracleTwap(
 
 	const clampRange = oracleTwap.div(new BN(3));
 
+	const observedPriceRaw = oraclePriceData?.price ?? oracleTwap;
+	const observedPrice = observedPriceRaw.gt(ZERO)
+		? observedPriceRaw
+		: oracleTwap;
 	const clampedOraclePrice = BN.min(
 		oracleTwap.add(clampRange),
-		BN.max(oraclePriceData.price, oracleTwap.sub(clampRange))
+		BN.max(observedPrice, oracleTwap.sub(clampRange))
 	);
 
 	const newOracleTwap = oracleTwap

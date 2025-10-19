@@ -244,6 +244,7 @@ export function getVammL2Generator({
 			let count = 0;
 			let topSize = ZERO;
 			let size = openLiquidity.abs().divn(commonOpts.numBaseOrders);
+			let generatedTotal = ZERO;
 			const amm = {
 				...startReserves,
 				sqrtK: commonOpts.sqrtK,
@@ -260,6 +261,16 @@ export function getVammL2Generator({
 					baseSwap = standardizeBaseAssetAmount(raw, commonOpts.orderStepSize);
 					const remaining = openLiquidity.abs().sub(topSize);
 					if (remaining.lt(baseSwap)) baseSwap = remaining;
+				}
+
+				// ensure last generated level absorbs any rounding remainder so totals match openLiquidity exactly
+				const levelsRemaining = commonOpts.numOrders - count - 1;
+				const remainingLiquidity = openLiquidity
+					.abs()
+					.sub(topSize)
+					.sub(generatedTotal);
+				if (levelsRemaining === 0 && remainingLiquidity.gt(ZERO)) {
+					baseSwap = remainingLiquidity;
 				}
 				if (baseSwap.isZero()) return;
 
@@ -293,6 +304,7 @@ export function getVammL2Generator({
 
 				yield { price, size: baseSwap, sources: { vamm: baseSwap } };
 				count++;
+				generatedTotal = generatedTotal.add(baseSwap);
 			}
 		};
 	};

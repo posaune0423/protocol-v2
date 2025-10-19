@@ -84,7 +84,8 @@ export const mockAMM: AMM = {
 	totalFee: new BN(0),
 	userLpShares: new BN(0),
 	baseAssetAmountWithUnsettledLp: new BN(0),
-	orderStepSize: new BN(0),
+	// set a sane non-zero default step size for AMM L2 tests expecting rounding
+	orderStepSize: new BN(1_000_000),
 	orderTickSize: new BN(1),
 	last24HAvgFundingRate: new BN(0),
 	lastFundingRateShort: new BN(0),
@@ -152,6 +153,7 @@ export const mockAMM: AMM = {
 	mmOraclePrice: new BN(0),
 	mmOracleSlot: new BN(0),
 	lastFundingOracleTwap: new BN(0),
+	referencePriceOffsetDeadbandPct: 0,
 };
 
 export const mockPerpMarkets: Array<PerpMarketAccount> = [
@@ -201,6 +203,10 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 		fuelBoostTaker: 0,
 		protectedMakerLimitPriceDivisor: 0,
 		protectedMakerDynamicDivisor: 0,
+		lpFeeTransferScalar: 0,
+		lpExchangeFeeExcluscionScalar: 0,
+		lpStatus: 0,
+		lpPausedOperations: 0,
 	},
 	{
 		status: MarketStatus.INITIALIZED,
@@ -248,6 +254,10 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 		fuelBoostTaker: 0,
 		protectedMakerLimitPriceDivisor: 0,
 		protectedMakerDynamicDivisor: 0,
+		lpFeeTransferScalar: 0,
+		lpExchangeFeeExcluscionScalar: 0,
+		lpStatus: 0,
+		lpPausedOperations: 0,
 	},
 	{
 		status: MarketStatus.INITIALIZED,
@@ -295,6 +305,10 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 		fuelBoostTaker: 0,
 		protectedMakerLimitPriceDivisor: 0,
 		protectedMakerDynamicDivisor: 0,
+		lpFeeTransferScalar: 0,
+		lpExchangeFeeExcluscionScalar: 0,
+		lpStatus: 0,
+		lpPausedOperations: 0,
 	},
 ];
 

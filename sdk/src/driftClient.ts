@@ -9388,8 +9388,8 @@ export class DriftClient {
 			!isOracleValid(
 				perpMarket,
 				oracleData,
-				stateAccountAndSlot.data.oracleGuardRails,
-				stateAccountAndSlot.slot
+				stateAccountAndSlot?.data.oracleGuardRails,
+				stateAccountAndSlot?.slot
 			) ||
 			perpMarket.amm.mmOraclePrice.eq(ZERO) ||
 			isExchangeOracleMoreRecent ||
