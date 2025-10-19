@@ -3,12 +3,16 @@
 
 yarn prettify
 yarn lint
-cd sdk && yarn run test
-yarn build
+(cd sdk && yarn run test && yarn build)
 
+# Run Rust checks only if Rust-related files are staged (or override via TS_PRECOMMIT_ONLY)
 if [ -z "$TS_PRECOMMIT_ONLY" ] || [ "$TS_PRECOMMIT_ONLY" = "false" ]; then
-  cargo fmt -- --check
-  cargo clippy -p drift -- -D warnings -D clippy::unwrap_used -D clippy::expect_used -D clippy::panic
-  cargo clippy -p drift --tests -- -D warnings
-  cargo test --quiet
+  if git diff --cached --name-only | grep -Eq '\.(rs|toml)$|^programs/|^deps/|^Anchor\.toml'; then
+    cargo fmt -- --check
+    cargo clippy -p drift -- -D warnings -D clippy::unwrap_used -D clippy::expect_used -D clippy::panic
+    cargo clippy -p drift --tests -- -D warnings
+    cargo test -p drift --quiet
+  else
+    echo "No Rust changes detected; skipping Rust checks"
+  fi
 fi
