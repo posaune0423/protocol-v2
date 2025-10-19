@@ -31,10 +31,7 @@ function calculateLiveMarkTwap(
 	const lastMarkPriceTwapTs = market.amm.lastMarkPriceTwapTs;
 
 	const timeSinceLastMarkChange = now.sub(lastMarkPriceTwapTs);
-	const markTwapTimeSinceLastUpdate = BN.max(
-		period,
-		BN.max(ZERO, period.sub(timeSinceLastMarkChange))
-	);
+	const markTwapTimeSinceLastUpdate = period;
 
 	if (!markPrice) {
 		const [bid, ask] = calculateBidAskPrice(market.amm, mmOraclePriceData);
@@ -142,9 +139,11 @@ export function calculateAllEstimatedFundingRate(
 		now,
 		market.amm.fundingPeriod
 	);
+	const oracleDataForTwap: OraclePriceData | undefined =
+		oraclePriceData || (mmOraclePriceData as unknown as OraclePriceData);
 	const liveOracleTwap = calculateLiveOracleTwap(
 		market.amm.historicalOracleData,
-		oraclePriceData,
+		oracleDataForTwap,
 		now,
 		market.amm.fundingPeriod
 	);

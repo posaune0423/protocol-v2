@@ -578,7 +578,7 @@ export function calculateVolSpreadBN(
 		.mul(PERCENTAGE_PRECISION)
 		.div(reservePrice)
 		.div(new BN(4));
-	const volSpread = BN.max(lastOracleConfPct, marketAvgStdPct.div(new BN(2)));
+	const volSpread = BN.max(lastOracleConfPct, marketAvgStdPct);
 
 	const clampMin = PERCENTAGE_PRECISION.div(new BN(100));
 	const clampMax = PERCENTAGE_PRECISION;
@@ -595,9 +595,10 @@ export function calculateVolSpreadBN(
 	);
 
 	// only consider confidence interval at full value when above 25 bps
+	// compare using percentage precision units (not price precision)
 	let confComponent = lastOracleConfPct;
 
-	if (lastOracleConfPct.lte(PRICE_PRECISION.div(new BN(400)))) {
+	if (lastOracleConfPct.lte(PERCENTAGE_PRECISION.div(new BN(400)))) {
 		confComponent = lastOracleConfPct.div(new BN(20));
 	}
 
@@ -985,26 +986,18 @@ export function calculateSpreadReserves(
 				quoteAssetReserve: amm.quoteAssetReserve,
 			};
 		}
-		let spreadFraction = new BN(spread).div(new BN(2));
-
-		// make non-zero
-		if (spreadFraction.eq(ZERO)) {
-			spreadFraction = spread >= 0 ? new BN(1) : new BN(-1);
-		}
-
-		const quoteAssetReserveDelta = amm.quoteAssetReserve.div(
-			BID_ASK_SPREAD_PRECISION.div(spreadFraction)
-		);
-
+		const halfSpread = BN.max(new BN(Math.abs(spread)).div(new BN(2)), ONE);
 		let quoteAssetReserve;
-		if (quoteAssetReserveDelta.gte(ZERO)) {
-			quoteAssetReserve = amm.quoteAssetReserve.add(
-				quoteAssetReserveDelta.abs()
-			);
+		if (direction === PositionDirection.LONG) {
+			// Ask side: higher price -> increase quote reserve
+			quoteAssetReserve = amm.quoteAssetReserve
+				.mul(BID_ASK_SPREAD_PRECISION.add(halfSpread))
+				.div(BID_ASK_SPREAD_PRECISION);
 		} else {
-			quoteAssetReserve = amm.quoteAssetReserve.sub(
-				quoteAssetReserveDelta.abs()
-			);
+			// Bid side: lower price -> decrease quote reserve
+			quoteAssetReserve = amm.quoteAssetReserve
+				.mul(BID_ASK_SPREAD_PRECISION.sub(halfSpread))
+				.div(BID_ASK_SPREAD_PRECISION);
 		}
 
 		if (isPrediction) {

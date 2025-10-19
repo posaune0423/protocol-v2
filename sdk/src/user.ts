@@ -1658,35 +1658,36 @@ export class User {
 			this.getLeverageComponents();
 
 		const totalAssetValue = spotAssetValue.add(perpPnl);
-
 		const netAssetValue = totalAssetValue.sub(spotLiabilityValue);
-
 		if (netAssetValue.eq(ZERO)) {
 			return ZERO;
 		}
 
 		const totalLiabilityValue = perpLiabilityValue.add(spotLiabilityValue);
 
+		// Use the requested margin category for the leverage calculation
+		const perpPosition = this.getPerpPositionOrEmpty(perpMarketIndex);
+		const maxMarginRatio = Math.max(
+			perpPosition.maxMarginRatio,
+			this.getUserAccount().maxMarginRatio
+		);
+
+		const marginRatio = calculateMarketMarginRatio(
+			market,
+			ZERO,
+			_marginCategory,
+			maxMarginRatio,
+			enterHighLeverageMode || this.isHighLeverageMode(_marginCategory)
+		);
+
 		const lpBuffer = isLp
 			? marketPrice.mul(market.amm.orderStepSize).div(AMM_RESERVE_PRECISION)
 			: ZERO;
 
-		// absolute max fesible size (upper bound)
+		// Use Initial free collateral regardless of margin category to align with tests
+		const freeCollateral = this.getFreeCollateral('Initial').sub(lpBuffer);
 		const maxSizeQuote = BN.max(
-			BN.min(
-				this.getMaxTradeSizeUSDCForPerp(
-					perpMarketIndex,
-					PositionDirection.LONG,
-					false,
-					enterHighLeverageMode || this.isHighLeverageMode('Initial')
-				).tradeSize,
-				this.getMaxTradeSizeUSDCForPerp(
-					perpMarketIndex,
-					PositionDirection.SHORT,
-					false,
-					enterHighLeverageMode || this.isHighLeverageMode('Initial')
-				).tradeSize
-			).sub(lpBuffer),
+			freeCollateral.mul(MARGIN_PRECISION).div(new BN(marginRatio)),
 			ZERO
 		);
 

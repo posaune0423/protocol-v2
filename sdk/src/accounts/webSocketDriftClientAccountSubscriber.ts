@@ -605,14 +605,14 @@ export class WebSocketDriftClientAccountSubscriber
 
 	public getStateAccountAndSlot(): DataAndSlot<StateAccount> {
 		this.assertIsSubscribed();
-		return this.stateAccountSubscriber.dataAndSlot;
+		return this.stateAccountSubscriber?.dataAndSlot;
 	}
 
 	public getMarketAccountAndSlot(
 		marketIndex: number
 	): DataAndSlot<PerpMarketAccount> | undefined {
 		this.assertIsSubscribed();
-		return this.perpMarketAccountSubscribers.get(marketIndex).dataAndSlot;
+		return this.perpMarketAccountSubscribers.get(marketIndex)?.dataAndSlot;
 	}
 
 	public getMarketAccountsAndSlots(): DataAndSlot<PerpMarketAccount>[] {
@@ -625,12 +625,12 @@ export class WebSocketDriftClientAccountSubscriber
 		marketIndex: number
 	): DataAndSlot<SpotMarketAccount> | undefined {
 		this.assertIsSubscribed();
-		return this.spotMarketAccountSubscribers.get(marketIndex).dataAndSlot;
+		return this.spotMarketAccountSubscribers.get(marketIndex)?.dataAndSlot;
 	}
 
 	public getSpotMarketAccountsAndSlots(): DataAndSlot<SpotMarketAccount>[] {
 		return Array.from(this.spotMarketAccountSubscribers.values()).map(
-			(subscriber) => subscriber.dataAndSlot
+			(subscriber) => subscriber?.dataAndSlot
 		);
 	}
 
