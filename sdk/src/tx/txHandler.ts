@@ -646,14 +646,12 @@ export class TxHandler {
 
 		this.addHashAndExpiryToLookup(recentBlockhash);
 
+		[wallet] = this.getProps(wallet);
+
 		for (const tx of Object.values(txsMap)) {
 			if (!tx) continue;
 			tx.recentBlockhash = recentBlockhash.blockhash;
-			tx.feePayer =
-				wallet.payer.publicKey ??
-				this.wallet.payer.publicKey ??
-				wallet.publicKey ??
-				this.wallet.publicKey;
+			tx.feePayer = wallet.payer?.publicKey ?? wallet.publicKey;
 
 			// @ts-ignore
 			tx.SIGNATURE_BLOCK_AND_EXPIRY = recentBlockhash;
