@@ -8,9 +8,11 @@ import { IWallet, IVersionedWallet } from './types';
 import nacl from 'tweetnacl';
 
 export class Wallet implements IWallet, IVersionedWallet {
+	readonly payer?: Keypair;
+
 	constructor(
 		readonly authority: Keypair,
-		readonly payer?: Keypair
+		payer?: Keypair
 	) {
 		this.payer = payer ?? authority;
 	}
