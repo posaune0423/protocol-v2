@@ -168,7 +168,22 @@ export class WhileValidTxSender extends BaseTxSender {
 				// @ts-ignore
 				latestBlockhash = tx.SIGNATURE_BLOCK_AND_EXPIRY;
 			}
+
+			// @ts-ignore
+		} else if (this.wallet.payer) {
+			tx.message.recentBlockhash = latestBlockhash.blockhash;
+			// @ts-ignore
+			[this.wallet.payer, ...(additionalSigners ?? [])]?.forEach(
+				(s) => s && tx.sign([s])
+			);
+			signedTx = tx;
 		} else {
+			tx.message.recentBlockhash = latestBlockhash.blockhash;
+			additionalSigners
+				?.filter((s): s is Signer => s !== undefined)
+				.forEach((kp) => {
+					tx.sign([kp]);
+				});
 			signedTx = await this.txHandler.signVersionedTx(
 				tx,
 				additionalSigners,
