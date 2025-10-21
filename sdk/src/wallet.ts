@@ -60,9 +60,7 @@ export class Wallet implements IWallet, IVersionedWallet {
 	}
 
 	get publicKey(): PublicKey {
-		// 後方互換性: payerのpublicKeyを返す（元の動作を維持）
-		// payerが設定されていない場合はsignerのpublicKey（同じもの）
-		return this.payer.publicKey;
+		return this.signer.publicKey;
 	}
 }
 
