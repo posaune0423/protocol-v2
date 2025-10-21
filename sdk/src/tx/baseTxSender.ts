@@ -176,9 +176,7 @@ export abstract class BaseTxSender implements TxSender {
 			// @ts-ignore
 		} else if (this.wallet.payer) {
 			// @ts-ignore
-			[this.wallet.payer, ...(additionalSigners ?? [])]?.forEach(
-				(s) => s && tx.sign([s])
-			);
+			tx.sign([this.wallet.payer, ...(additionalSigners ?? [])]);
 			signedTx = tx;
 		} else {
 			signedTx = await this.txHandler.signVersionedTx(

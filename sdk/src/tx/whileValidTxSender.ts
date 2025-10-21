@@ -173,9 +173,7 @@ export class WhileValidTxSender extends BaseTxSender {
 		} else if (this.wallet.payer) {
 			tx.message.recentBlockhash = latestBlockhash.blockhash;
 			// @ts-ignore
-			[this.wallet.payer, ...(additionalSigners ?? [])]?.forEach(
-				(s) => s && tx.sign([s])
-			);
+			tx.sign([this.wallet.payer, ...(additionalSigners ?? [])]);
 			signedTx = tx;
 		} else {
 			tx.message.recentBlockhash = latestBlockhash.blockhash;
