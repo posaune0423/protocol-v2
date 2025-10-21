@@ -296,9 +296,7 @@ export class TxHandler {
 		this.preSignedCb?.();
 
 		//@ts-ignore
-		const signedTx = (await wallet.signVersionedTransaction(
-			tx
-		)) as VersionedTransaction;
+		const signedTx = (await wallet.signTransaction(tx)) as VersionedTransaction;
 
 		// Turn txSig Buffer into base58 string
 		const txSig = this.getTxSigFromSignedTx(signedTx);
