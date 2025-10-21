@@ -650,10 +650,10 @@ export class TxHandler {
 			if (!tx) continue;
 			tx.recentBlockhash = recentBlockhash.blockhash;
 			tx.feePayer =
-				wallet?.payer?.publicKey ??
-				wallet?.publicKey ??
-				this.wallet?.payer?.publicKey ??
-				this.wallet?.publicKey;
+				wallet.payer.publicKey ??
+				this.wallet.payer.publicKey ??
+				wallet.publicKey ??
+				this.wallet.publicKey;
 
 			// @ts-ignore
 			tx.SIGNATURE_BLOCK_AND_EXPIRY = recentBlockhash;
