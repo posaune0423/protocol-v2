@@ -9,17 +9,17 @@ import nacl from 'tweetnacl';
 
 export class Wallet implements IWallet, IVersionedWallet {
 	constructor(
-		readonly signer: Keypair,
+		readonly authority: Keypair,
 		readonly payer?: Keypair
 	) {
-		this.payer = payer ?? signer;
+		this.payer = payer ?? authority;
 	}
 
 	async signTransaction(tx: Transaction): Promise<Transaction> {
-		if (this.payer && this.payer.publicKey.toBase58() !== this.signer.publicKey.toBase58()) {
-			tx.partialSign(this.payer, this.signer);
+		if (this.payer && this.payer.publicKey.toBase58() !== this.authority.publicKey.toBase58()) {
+			tx.partialSign(this.payer, this.authority);
 		} else {
-			tx.partialSign(this.signer);
+			tx.partialSign(this.authority);
 		}
 		return tx;
 	}
@@ -27,20 +27,20 @@ export class Wallet implements IWallet, IVersionedWallet {
 	async signVersionedTransaction(
 		tx: VersionedTransaction
 	): Promise<VersionedTransaction> {
-		if (this.payer && this.payer.publicKey.toBase58() !== this.signer.publicKey.toBase58()) {
-			tx.sign([this.payer, this.signer]);
+		if (this.payer && this.payer.publicKey.toBase58() !== this.authority.publicKey.toBase58()) {
+			tx.sign([this.payer, this.authority]);
 		} else {
-			tx.sign([this.signer]);
+			tx.sign([this.authority]);
 		}
 		return tx;
 	}
 
 	async signAllTransactions(txs: Transaction[]): Promise<Transaction[]> {
 		return txs.map((t) => {
-			if (this.payer && this.payer.publicKey.toBase58() !== this.signer.publicKey.toBase58()) {
-				t.partialSign(this.payer, this.signer);
+			if (this.payer && this.payer.publicKey.toBase58() !== this.authority.publicKey.toBase58()) {
+				t.partialSign(this.payer, this.authority);
 			} else {
-				t.partialSign(this.signer);
+				t.partialSign(this.authority);
 			}
 			return t;
 		});
@@ -50,26 +50,26 @@ export class Wallet implements IWallet, IVersionedWallet {
 		txs: VersionedTransaction[]
 	): Promise<VersionedTransaction[]> {
 		return txs.map((t) => {
-			if (this.payer && this.payer.publicKey.toBase58() !== this.signer.publicKey.toBase58()) {
-				t.sign([this.payer, this.signer]);
+			if (this.payer && this.payer.publicKey.toBase58() !== this.authority.publicKey.toBase58()) {
+				t.sign([this.payer, this.authority]);
 			} else {
-				t.sign([this.signer]);
+				t.sign([this.authority]);
 			}
 			return t;
 		});
 	}
 
 	get publicKey(): PublicKey {
-		return this.signer.publicKey;
+		return this.authority.publicKey;
 	}
 }
 
 export class WalletV2 extends Wallet {
-	constructor(readonly signer: Keypair) {
-		super(signer);
+	constructor(readonly authority: Keypair) {
+		super(authority);
 	}
 
 	async signMessage(message: Uint8Array): Promise<Uint8Array> {
-		return Buffer.from(nacl.sign.detached(message, this.signer.secretKey));
+		return Buffer.from(nacl.sign.detached(message, this.authority.secretKey));
 	}
 }
