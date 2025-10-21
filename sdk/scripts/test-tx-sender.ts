@@ -197,6 +197,7 @@ async function testWhileValidTxSender(wallet: Wallet, connection: Connection) {
 	const whileValidTxSender = new WhileValidTxSender({
 		connection,
 		wallet,
+		timeout: 60000, // 60 seconds timeout
 		retrySleep: 1000, // Retry every 1 second
 	});
 

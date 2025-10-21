@@ -296,7 +296,9 @@ export class TxHandler {
 		this.preSignedCb?.();
 
 		//@ts-ignore
-		const signedTx = (await wallet.signTransaction(tx)) as VersionedTransaction;
+		const signedTx = (await wallet.signVersionedTransaction(
+			tx
+		)) as VersionedTransaction;
 
 		// Turn txSig Buffer into base58 string
 		const txSig = this.getTxSigFromSignedTx(signedTx);
@@ -646,12 +648,14 @@ export class TxHandler {
 
 		this.addHashAndExpiryToLookup(recentBlockhash);
 
-		[wallet] = this.getProps(wallet);
-
 		for (const tx of Object.values(txsMap)) {
 			if (!tx) continue;
 			tx.recentBlockhash = recentBlockhash.blockhash;
-			tx.feePayer = wallet.payer?.publicKey ?? wallet.publicKey;
+			tx.feePayer =
+				wallet?.payer?.publicKey ??
+				wallet?.publicKey ??
+				this.wallet?.payer?.publicKey ??
+				this.wallet?.publicKey;
 
 			// @ts-ignore
 			tx.SIGNATURE_BLOCK_AND_EXPIRY = recentBlockhash;
